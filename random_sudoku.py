@@ -28,4 +28,4 @@ def get_random_sudoku_puzzle():
     return sudoku_string
 
 if __name__ == "__main__":
-    get_random_sudoku_puzzle()
+    print(get_random_sudoku_puzzle())
