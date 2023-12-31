@@ -3,13 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
+	"reflect"
+	"sort"
 	"strings"
 
 	"golang.org/x/sys/windows"
 )
 
 const (
-	TEST_PUZZLE   = "920300154050001000300042700040000075009000200670000090006920008000600040197005023"
+	TEST_PUZZLE = "457869003009200058000000740000730000620908075000046000061000000730005100500193867"
+	LOOP_LIMIT  = 50
+
 	COLOUR_RESET  = "\033[0m"
 	COLOUR_RED    = "\033[31m"
 	COLOUR_GREEN  = "\033[32m"
@@ -36,14 +40,45 @@ type Position struct {
 
 func main() {
 	colour_init()
-
 	puz := parse_puzzle_string(TEST_PUZZLE)
+	small_display(puz)
+	solve_loop(puz)
+}
 
-	fmt.Println(get_entire_box(puz, 0))
+func solve_loop(puz []Cell) {
 
-	// small_display(TEST_PUZZLE)
-	// large_display(TEST_PUZZLE)
+	for cycles := 0; cycles < LOOP_LIMIT; cycles++ {
+		if check_complete(puz) {
+			fmt.Println("")
+			fmt.Println("Sudoku puzzle is complete after", cycles, "cycles!")
+			return
+		}
+		// saving for difference check later
+		pre_check_puz := puz
 
+		// running though each solver function
+		/* TODO:
+		evaluate if assess_potentials should be run after each solve
+		function or at the start of the loop.
+		*/
+		puz = assess_potentials(puz)
+		puz = naked_singles(puz)
+		// further check strategies
+		//puz = hidden_singles(puz)
+		//puz = naked_pairs(puz)
+		//puz = x_wing(puz)
+
+		fmt.Println("")
+		small_display(puz)
+
+		if is_puzzle_same(pre_check_puz, puz) {
+			fmt.Println("")
+			fmt.Println("Sudoku puzzle stalled after", cycles, "cycles.")
+			return
+		}
+	}
+	fmt.Println("")
+	fmt.Println("ERROR: Solver hit limit after", LOOP_LIMIT, "cycles.")
 }
 
 func colour_init() {
@@ -58,28 +93,37 @@ func colour_init() {
 	_ = windows.SetConsoleMode(out, outMode)
 }
 
-func small_display(puz string) {
-	for i := 1; i < 10; i++ {
-		var row string
-		row = ""
-		for x := 1; x < 10; x++ {
-			index := (i * x) - 1
-
-			if x-1 > 0 && (x-1)%3 == 0 {
-				row = row + "|"
-			}
-
-			if string(puz[index]) == "0" {
-				row = row + COLOUR_WHITE + " " + string(puz[index]) + " " + COLOUR_RESET
+func small_display(puz []Cell) {
+	for i := 0; i < 9; i++ {
+		var print_row string
+		for p, n := range strings.Join(get_entire_row(puz, i), " ") {
+			if string(n) == "0" {
+				print_row = print_row + COLOUR_WHITE + string(n) + COLOUR_RESET
 			} else {
-				row = row + COLOUR_GREEN + " " + string(puz[index]) + " " + COLOUR_RESET
+				print_row = print_row + COLOUR_GREEN + string(n) + COLOUR_RESET
+			}
+			if (p+1)%6 == 0 {
+				print_row = print_row + "| "
 			}
 		}
-		if i-1 > 0 && (i-1)%3 == 0 {
-			fmt.Println("─────────┼─────────┼─────────")
+		if i != 0 && i%3 == 0 {
+			fmt.Println(" ──────┼───────┼──────")
 		}
-		fmt.Println(row)
+		fmt.Println(" " + print_row + " ")
 	}
+}
+
+func naked_singles(puz []Cell) []Cell {
+	var output []Cell
+	for _, c := range puz {
+		if c.value == "0" {
+			if len(c.potentials) == 1 {
+				c.value = c.potentials[0]
+			}
+		}
+		output = append(output, c)
+	}
+	return output
 }
 
 func parse_puzzle_string(puz string) []Cell {
@@ -96,14 +140,62 @@ func parse_puzzle_string(puz string) []Cell {
 	return cell_array
 }
 
-// func fill_initial_potentials(puz []Cell) []Cell {
-// 	for _, c := range puz {
-// 		if c.value != "0" {
-// 			continue
-// 		}
+func assess_potentials(puz []Cell) []Cell {
+	var output []Cell
+	for _, c := range puz {
+		if c.value == "0" {
+			var potentials []string
+			for i := 1; i < 10; i++ {
+				potentials = append(potentials, fmt.Sprint(i))
+			}
+			check_row := get_entire_row(puz, c.coordinates.row)
+			potentials = diff(potentials, check_row)
 
-// 	}
-// }
+			check_col := get_entire_col(puz, c.coordinates.column)
+			potentials = diff(potentials, check_col)
+
+			check_box := get_entire_box(puz, c.coordinates.box)
+			potentials = diff(potentials, check_box)
+
+			c.potentials = potentials
+		}
+		output = append(output, c)
+	}
+	return output
+}
+
+func check_complete(puz []Cell) bool {
+	for _, c := range puz {
+		if c.value == "0" {
+			return false
+		}
+	}
+	return true
+}
+
+func is_puzzle_same(previous_puz []Cell, current_puz []Cell) bool {
+	return reflect.DeepEqual(previous_puz, current_puz)
+}
+
+func diff(a []string, b []string) []string {
+	// Turn b into a map
+	m := make(map[string]bool, len(b))
+	for _, s := range b {
+		m[s] = false
+	}
+	// Append values from the longest slice that don't exist in the map
+	var diff []string
+	for _, s := range a {
+		if _, ok := m[s]; !ok {
+			diff = append(diff, s)
+			continue
+		}
+		m[s] = true
+	}
+	// Sort the resulting slice
+	sort.Strings(diff)
+	return diff
+}
 
 func get_entire_row(puz []Cell, target int) []string {
 	var output []string
@@ -135,14 +227,14 @@ func get_entire_box(puz []Cell, target int) []string {
 	return output
 }
 
-func get_pos(puz []Cell, target []int) {}
+func large_display(puz string) {
 
-func large_display(puz string) {}
+	/*
+		something like this:
 
-/*
-
-      | ∙ ∙ ∙ | 1 2 3 ║
-  5   | ∙ 5 ∙ | 4 5 6 ║
-      | ∙ ∙ ∙ | 7 8 9 ║
------+
-*/
+			| ∙ ∙ ∙ | 1 2 3 ║
+		5   | ∙ 5 ∙ | 4 5 6 ║
+			| ∙ ∙ ∙ | 7 8 9 ║
+		-----+
+	*/
+}
