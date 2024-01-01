@@ -40,7 +40,7 @@ type Position struct {
 
 func main() {
 	colour_init()
-	puz := parse_puzzle_string(TEST_PUZZLE)
+	var puz []Cell = parse_puzzle_string(TEST_PUZZLE)
 	small_display(puz)
 	solve_loop(puz)
 }
@@ -54,7 +54,7 @@ func solve_loop(puz []Cell) {
 			return
 		}
 		// saving for difference check later
-		pre_check_puz := puz
+		var pre_check_puz []Cell = puz
 
 		// running though each solver function
 		/* TODO:
