@@ -11,8 +11,12 @@ import (
 )
 
 const (
-	TEST_PUZZLE = "457869003009200058000000740000730000620908075000046000061000000730005100500193867"
-	LOOP_LIMIT  = 50
+	TEST_PUZZLE_EASY   = "457869003009200058000000740000730000620908075000046000061000000730005100500193867"
+	TEST_PUZZLE_MEDIUM = "940030010301840005000002070700000000020465090000000002060300000800054607030010048"
+	TEST_PUZZLE_HARD   = "000025670609000010002004000080002700030060090004500020000200800020000301096480000"
+	TEST_PUZZLE_EVIL   = "003000001004086009000100030030900140800000005027001090070005000300490600200000500"
+
+	LOOP_LIMIT = 50
 
 	COLOUR_RESET  = "\033[0m"
 	COLOUR_RED    = "\033[31m"
@@ -40,7 +44,7 @@ type Position struct {
 
 func main() {
 	colour_init()
-	var puz []Cell = parse_puzzle_string(TEST_PUZZLE)
+	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_HARD)
 	small_display(puz)
 	solve_loop(puz)
 }
@@ -62,10 +66,10 @@ func solve_loop(puz []Cell) {
 		function or at the start of the loop.
 		*/
 		puz = assess_potentials(puz)
-		puz = naked_singles(puz)
+		puz = open_singles(puz)
 		// further check strategies
-		//puz = hidden_singles(puz)
-		//puz = naked_pairs(puz)
+		// puz = hidden_singles(puz)
+		//puz = open_pairs(puz)
 		//puz = x_wing(puz)
 
 		fmt.Println("")
@@ -96,7 +100,8 @@ func colour_init() {
 func small_display(puz []Cell) {
 	for i := 0; i < 9; i++ {
 		var print_row string
-		for p, n := range strings.Join(get_entire_row(puz, i), " ") {
+		entire_row := get_entire_row(puz, i)
+		for p, n := range strings.Join(stringify_cells(entire_row), " ") {
 			if string(n) == "0" {
 				print_row = print_row + COLOUR_WHITE + string(n) + COLOUR_RESET
 			} else {
@@ -113,7 +118,7 @@ func small_display(puz []Cell) {
 	}
 }
 
-func naked_singles(puz []Cell) []Cell {
+func open_singles(puz []Cell) []Cell {
 	var output []Cell
 	for _, c := range puz {
 		if c.value == "0" {
@@ -128,7 +133,7 @@ func naked_singles(puz []Cell) []Cell {
 
 func parse_puzzle_string(puz string) []Cell {
 	var cell_array []Cell
-	for i, c := range strings.Split(TEST_PUZZLE, "") {
+	for i, c := range strings.Split(puz, "") {
 		row := i / 9
 		col := i % 9
 		box := ((row / 3) * 3) + ((col / 3) % 3)
@@ -148,18 +153,27 @@ func assess_potentials(puz []Cell) []Cell {
 			for i := 1; i < 10; i++ {
 				potentials = append(potentials, fmt.Sprint(i))
 			}
-			check_row := get_entire_row(puz, c.coordinates.row)
+			entire_row := get_entire_row(puz, c.coordinates.row)
+			check_row := stringify_cells(entire_row)
 			potentials = diff(potentials, check_row)
 
-			check_col := get_entire_col(puz, c.coordinates.column)
-			potentials = diff(potentials, check_col)
+			entire_col := get_entire_col(puz, c.coordinates.column)
+			potentials = diff(potentials, stringify_cells(entire_col))
 
-			check_box := get_entire_box(puz, c.coordinates.box)
-			potentials = diff(potentials, check_box)
+			entire_box := get_entire_box(puz, c.coordinates.box)
+			potentials = diff(potentials, stringify_cells(entire_box))
 
 			c.potentials = potentials
 		}
 		output = append(output, c)
+	}
+	return output
+}
+
+func stringify_cells(cell_arr []Cell) []string {
+	var output []string
+	for _, c := range cell_arr {
+		output = append(output, c.value)
 	}
 	return output
 }
@@ -197,31 +211,31 @@ func diff(a []string, b []string) []string {
 	return diff
 }
 
-func get_entire_row(puz []Cell, target int) []string {
-	var output []string
+func get_entire_row(puz []Cell, target int) []Cell {
+	var output []Cell
 	for _, c := range puz {
 		if c.coordinates.row == target {
-			output = append(output, c.value)
+			output = append(output, c)
 		}
 	}
 	return output
 }
 
-func get_entire_col(puz []Cell, target int) []string {
-	var output []string
+func get_entire_col(puz []Cell, target int) []Cell {
+	var output []Cell
 	for _, c := range puz {
 		if c.coordinates.column == target {
-			output = append(output, c.value)
+			output = append(output, c)
 		}
 	}
 	return output
 }
 
-func get_entire_box(puz []Cell, target int) []string {
-	var output []string
+func get_entire_box(puz []Cell, target int) []Cell {
+	var output []Cell
 	for _, c := range puz {
 		if c.coordinates.box == target {
-			output = append(output, c.value)
+			output = append(output, c)
 		}
 	}
 	return output

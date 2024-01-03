@@ -3,8 +3,14 @@
 import requests
 from bs4 import BeautifulSoup
 
-def retrieve_page():
-    sudoku_url = requests.get("https://west.websudoku.com/?")
+#sudoku difficulty levels:
+EASY   = "1"
+MEDIUM = "2"
+HARD   = "3"
+EVIL   = "4"
+
+def retrieve_page(difficulty = "1"):
+    sudoku_url = requests.get(f"https://west.websudoku.com/?level={difficulty}")
     html_soup = BeautifulSoup(sudoku_url.text, "html.parser")
     return html_soup
 
@@ -23,7 +29,7 @@ def parse_table(html_page):
     return "".join(sudoku_str_arr)
 
 def get_random_sudoku_puzzle():
-    html_page = retrieve_page()
+    html_page = retrieve_page(EVIL)
     sudoku_string = parse_table(html_page)
     return sudoku_string
 
