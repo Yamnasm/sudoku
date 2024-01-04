@@ -154,8 +154,7 @@ func assess_potentials(puz []Cell) []Cell {
 				potentials = append(potentials, fmt.Sprint(i))
 			}
 			entire_row := get_entire_row(puz, c.coordinates.row)
-			check_row := stringify_cells(entire_row)
-			potentials = diff(potentials, check_row)
+			potentials = diff(potentials, stringify_cells(entire_row))
 
 			entire_col := get_entire_col(puz, c.coordinates.column)
 			potentials = diff(potentials, stringify_cells(entire_col))

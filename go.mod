@@ -2,6 +2,4 @@ module github.com/logic-puzzle-solvers/sudoku
 
 go 1.21.5
 
-require (
-	golang.org/x/sys v0.15.0 // indirect
-)
+require golang.org/x/sys v0.15.0
