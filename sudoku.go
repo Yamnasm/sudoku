@@ -68,7 +68,7 @@ func solve_loop(puz []Cell) {
 		puz = assess_potentials(puz)
 		puz = open_singles(puz)
 		// further check strategies
-		// puz = hidden_singles(puz)
+		puz = hidden_singles(puz)
 		//puz = open_pairs(puz)
 		//puz = x_wing(puz)
 
@@ -129,6 +129,58 @@ func open_singles(puz []Cell) []Cell {
 		output = append(output, c)
 	}
 	return output
+}
+
+// mild attempt at this check function. Doesn't work.
+func hidden_singles(puz []Cell) []Cell {
+	var output []Cell
+
+	for _, c := range puz {
+		if c.value == "0" {
+			entire_row := get_entire_row(puz, c.coordinates.row)
+			flat_potentials_list := concatinate_potentials(entire_row)
+			// fmt.Println(entire_row, flat_potentials_list)
+			// break
+			for _, row_cell := range entire_row {
+				if c.value != "0" {
+					break
+				}
+				for _, p := range row_cell.potentials {
+					if count(p, flat_potentials_list) == 1 {
+						c.value = p
+						c.potentials = nil
+						break
+					}
+				}
+			}
+		}
+		output = append(output, c)
+	}
+	return output
+}
+
+func count(target string, array []string) int {
+	var count int = 0
+	for _, e := range array {
+		if target == e {
+			count++
+		}
+	}
+	return count
+}
+
+func concatinate_potentials(cells []Cell) []string {
+	var joined []string
+	var potentials_array [][]string
+
+	for _, p := range cells {
+		potentials_array = append(potentials_array, p.potentials)
+	}
+
+	for _, s := range potentials_array {
+		joined = append(joined, s...)
+	}
+	return joined
 }
 
 func parse_puzzle_string(puz string) []Cell {
