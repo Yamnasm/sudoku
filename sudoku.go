@@ -67,7 +67,7 @@ func solve_loop(puz []Cell) {
 		*/
 		puz = assess_potentials(puz)
 		puz = open_singles(puz)
-		// further check strategies
+		puz = assess_potentials(puz)
 		puz = hidden_singles(puz)
 		//puz = open_pairs(puz)
 		//puz = x_wing(puz)
@@ -123,7 +123,9 @@ func open_singles(puz []Cell) []Cell {
 	for _, c := range puz {
 		if c.value == "0" {
 			if len(c.potentials) == 1 {
+				fmt.Println("Open Single", c.potentials[0])
 				c.value = c.potentials[0]
+				c.potentials = nil
 			}
 		}
 		output = append(output, c)
@@ -131,7 +133,7 @@ func open_singles(puz []Cell) []Cell {
 	return output
 }
 
-// mild attempt at this check function. Doesn't work.
+// mild attempt at this check function. Doesn't work but can do.
 func hidden_singles(puz []Cell) []Cell {
 	var output []Cell
 
@@ -139,20 +141,35 @@ func hidden_singles(puz []Cell) []Cell {
 		if c.value == "0" {
 			entire_row := get_entire_row(puz, c.coordinates.row)
 			flat_potentials_list := concatinate_potentials(entire_row)
-			// fmt.Println(entire_row, flat_potentials_list)
-			// break
-			for _, row_cell := range entire_row {
-				if c.value != "0" {
-					break
-				}
-				for _, p := range row_cell.potentials {
-					if count(p, flat_potentials_list) == 1 {
-						c.value = p
-						c.potentials = nil
-						break
-					}
+			for _, p := range c.potentials {
+				if count(p, flat_potentials_list) == 1 {
+					fmt.Println("Hidden Single", p)
+					c.value = p
+					c.potentials = nil
 				}
 			}
+			entire_col := get_entire_col(puz, c.coordinates.row)
+			flat_potentials_list = concatinate_potentials(entire_col)
+			for _, p := range c.potentials {
+				if count(p, flat_potentials_list) == 1 {
+					fmt.Println("Hidden Single", p)
+					c.value = p
+					c.potentials = nil
+					break
+				}
+			}
+
+			entire_box := get_entire_box(puz, c.coordinates.row)
+			flat_potentials_list = concatinate_potentials(entire_box)
+			for _, p := range c.potentials {
+				if count(p, flat_potentials_list) == 1 {
+					fmt.Println("Hidden Single", p)
+					c.value = p
+					c.potentials = nil
+					break
+				}
+			}
+
 		}
 		output = append(output, c)
 	}
