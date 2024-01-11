@@ -68,7 +68,11 @@ func solve_loop(puz []Cell) {
 		puz = assess_potentials(puz)
 		puz = open_singles(puz)
 		puz = assess_potentials(puz)
-		puz = hidden_singles(puz)
+		puz = hidden_singles(puz, 1) //mode 1 is rows
+		puz = assess_potentials(puz)
+		puz = hidden_singles(puz, 2) //mode 2 is columns
+		puz = assess_potentials(puz)
+		puz = hidden_singles(puz, 3) //mode 3 is boxes
 		//puz = open_pairs(puz)
 		//puz = x_wing(puz)
 
@@ -134,44 +138,59 @@ func open_singles(puz []Cell) []Cell {
 }
 
 // mild attempt at this check function. Doesn't work but can do.
-func hidden_singles(puz []Cell) []Cell {
+func hidden_singles(puz []Cell, mode int) []Cell {
 	var output []Cell
 
-	for _, c := range puz {
-		if c.value == "0" {
-			entire_row := get_entire_row(puz, c.coordinates.row)
-			flat_potentials_list := concatinate_potentials(entire_row)
-			for _, p := range c.potentials {
-				if count(p, flat_potentials_list) == 1 {
-					fmt.Println("Hidden Single", p)
-					c.value = p
-					c.potentials = nil
+	// checking rows
+	if mode == 1 {
+		for _, c := range puz {
+			if c.value == "0" {
+				entire_row := get_entire_row(puz, c.coordinates.row)
+				flat_potentials_list := concatinate_potentials(entire_row)
+				for _, p := range c.potentials {
+					if count(p, flat_potentials_list) == 1 {
+						fmt.Println("Hidden Single", p)
+						c.value = p
+						c.potentials = nil
+					}
 				}
 			}
-			entire_col := get_entire_col(puz, c.coordinates.row)
-			flat_potentials_list = concatinate_potentials(entire_col)
-			for _, p := range c.potentials {
-				if count(p, flat_potentials_list) == 1 {
-					fmt.Println("Hidden Single", p)
-					c.value = p
-					c.potentials = nil
-					break
-				}
-			}
-
-			entire_box := get_entire_box(puz, c.coordinates.row)
-			flat_potentials_list = concatinate_potentials(entire_box)
-			for _, p := range c.potentials {
-				if count(p, flat_potentials_list) == 1 {
-					fmt.Println("Hidden Single", p)
-					c.value = p
-					c.potentials = nil
-					break
-				}
-			}
-
+			output = append(output, c)
 		}
-		output = append(output, c)
+	}
+	// checking columns
+	if mode == 2 {
+		for _, c := range puz {
+			if c.value == "0" {
+				entire_row := get_entire_row(puz, c.coordinates.row)
+				flat_potentials_list := concatinate_potentials(entire_row)
+				for _, p := range c.potentials {
+					if count(p, flat_potentials_list) == 1 {
+						fmt.Println("Hidden Single", p)
+						c.value = p
+						c.potentials = nil
+					}
+				}
+			}
+			output = append(output, c)
+		}
+	}
+	// checking boxes
+	if mode == 3 {
+		for _, c := range puz {
+			if c.value == "0" {
+				entire_row := get_entire_row(puz, c.coordinates.row)
+				flat_potentials_list := concatinate_potentials(entire_row)
+				for _, p := range c.potentials {
+					if count(p, flat_potentials_list) == 1 {
+						fmt.Println("Hidden Single", p)
+						c.value = p
+						c.potentials = nil
+					}
+				}
+			}
+			output = append(output, c)
+		}
 	}
 	return output
 }
@@ -196,6 +215,15 @@ func concatinate_potentials(cells []Cell) []string {
 
 	for _, s := range potentials_array {
 		joined = append(joined, s...)
+	}
+	return joined
+}
+
+func listify_values(cells []Cell) []string {
+	var joined []string
+
+	for _, s := range cells {
+		joined = append(joined, s.value)
 	}
 	return joined
 }
@@ -247,11 +275,33 @@ func stringify_cells(cell_arr []Cell) []string {
 }
 
 func check_complete(puz []Cell) bool {
+	// super quick check if puzzle is not filled in
 	for _, c := range puz {
 		if c.value == "0" {
 			return false
 		}
 	}
+	// proper confirmation if puzzle is *valid*
+	for i := 0; i < 9; i++ {
+		entire_row := listify_values(get_entire_row(puz, i))
+		entire_col := listify_values(get_entire_col(puz, i))
+		entire_box := listify_values(get_entire_box(puz, i))
+		for num := 1; num < 10; num++ {
+			if count(fmt.Sprint(num), entire_row) > 1 {
+				fmt.Println("Puzzle is invalid!")
+				return false
+			}
+			if count(fmt.Sprint(num), entire_col) > 1 {
+				fmt.Println("Puzzle is invalid!")
+				return false
+			}
+			if count(fmt.Sprint(num), entire_box) > 1 {
+				fmt.Println("Puzzle is invalid!")
+				return false
+			}
+		}
+	}
+	// if we got to this point, it's all good!
 	return true
 }
 
