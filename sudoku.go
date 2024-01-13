@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -45,7 +46,7 @@ type Position struct {
 func main() {
 	colour_init()
 	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_HARD)
-	small_display(puz)
+	// small_display(puz)
 	solve_loop(puz)
 }
 
@@ -66,18 +67,20 @@ func solve_loop(puz []Cell) {
 		function or at the start of the loop.
 		*/
 		puz = assess_potentials(puz)
-		puz = open_singles(puz)
-		puz = assess_potentials(puz)
-		puz = hidden_singles(puz, 1) //mode 1 is rows
-		puz = assess_potentials(puz)
-		puz = hidden_singles(puz, 2) //mode 2 is columns
-		puz = assess_potentials(puz)
-		puz = hidden_singles(puz, 3) //mode 3 is boxes
+		small_display(puz)
+		large_display(puz)
+		// puz = open_singles(puz)
+		// puz = assess_potentials(puz)
+		// puz = hidden_singles(puz, 1) //mode 1 is rows
+		// puz = assess_potentials(puz)
+		// puz = hidden_singles(puz, 2) //mode 2 is columns
+		// puz = assess_potentials(puz)
+		// puz = hidden_singles(puz, 3) //mode 3 is boxes
 		//puz = open_pairs(puz)
 		//puz = x_wing(puz)
 
 		fmt.Println("")
-		small_display(puz)
+		// small_display(puz)
 
 		if is_puzzle_same(pre_check_puz, puz) {
 			fmt.Println("")
@@ -99,27 +102,6 @@ func colour_init() {
 	}
 	outMode |= windows.ENABLE_PROCESSED_OUTPUT | windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING
 	_ = windows.SetConsoleMode(out, outMode)
-}
-
-func small_display(puz []Cell) {
-	for i := 0; i < 9; i++ {
-		var print_row string
-		entire_row := get_entire_row(puz, i)
-		for p, n := range strings.Join(stringify_cells(entire_row), " ") {
-			if string(n) == "0" {
-				print_row = print_row + COLOUR_WHITE + string(n) + COLOUR_RESET
-			} else {
-				print_row = print_row + COLOUR_GREEN + string(n) + COLOUR_RESET
-			}
-			if (p+1)%6 == 0 {
-				print_row = print_row + "| "
-			}
-		}
-		if i != 0 && i%3 == 0 {
-			fmt.Println(" ──────┼───────┼──────")
-		}
-		fmt.Println(" " + print_row + " ")
-	}
 }
 
 func open_singles(puz []Cell) []Cell {
@@ -359,8 +341,63 @@ func get_entire_box(puz []Cell, target int) []Cell {
 	return output
 }
 
-func large_display(puz string) {
+func small_display(puz []Cell) {
+	for i := 0; i < 9; i++ {
+		var print_row string
+		entire_row := get_entire_row(puz, i)
+		for p, n := range strings.Join(stringify_cells(entire_row), " ") {
+			if string(n) == "0" {
+				print_row = print_row + COLOUR_WHITE + string(n) + COLOUR_RESET
+			} else {
+				print_row = print_row + COLOUR_GREEN + string(n) + COLOUR_RESET
+			}
+			if (p+1)%6 == 0 {
+				print_row = print_row + "| "
+			}
+		}
+		if i != 0 && i%3 == 0 {
+			fmt.Println(" ──────┼───────┼──────")
+		}
+		fmt.Println(" " + print_row + " ")
+	}
+}
 
+// working on making the potentials visible on CLI. WIP
+func large_display(puz []Cell) {
+
+	for i := 0; i < 9; i++ {
+		var print_row string
+		entire_row := get_entire_row(puz, i)
+
+		for r := 1; r < 4; r++ {
+			for p, n := range entire_row {
+				for k := 1; k < 4; k++ {
+					check_num := r * k
+					if slices.Contains(n.potentials, fmt.Sprint(check_num)) {
+						print_row = print_row + fmt.Sprint(check_num)
+					} else {
+						print_row = print_row + "o"
+					}
+				}
+				if (p+1)%3 == 0 {
+					print_row = print_row + "|"
+				}
+			}
+		}
+		fmt.Println(print_row)
+		// for p, n := range entire_row {
+		// 	for k := 1; k < 10; k++ {
+		// 		if slices.Contains(n.potentials, fmt.Sprint(k)) {
+		// 			print_row = print_row + fmt.Sprint(k)
+		// 		}
+		// 		print_row = print_row + "o"
+		// 	}
+		// 	if (p+1)%3 == 0 {
+		// 		print_row = print_row + "| "
+		// 	}
+		// }
+
+	}
 	/*
 		something like this:
 
@@ -369,4 +406,5 @@ func large_display(puz string) {
 			| ∙ ∙ ∙ | 7 8 9 ║
 		-----+
 	*/
+
 }
