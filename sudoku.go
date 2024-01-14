@@ -68,6 +68,7 @@ func solve_loop(puz []Cell) {
 		*/
 		puz = assess_potentials(puz)
 		small_display(puz)
+		fmt.Println("")
 		large_display(puz)
 		// puz = open_singles(puz)
 		// puz = assess_potentials(puz)
@@ -369,42 +370,36 @@ func large_display(puz []Cell) {
 		var print_row string
 		entire_row := get_entire_row(puz, i)
 
-		for r := 1; r < 4; r++ {
+		for r := 0; r < 3; r++ {
 			for p, n := range entire_row {
 				for k := 1; k < 4; k++ {
-					check_num := r * k
+					check_num := (r * 3) + k
 					if slices.Contains(n.potentials, fmt.Sprint(check_num)) {
 						print_row = print_row + fmt.Sprint(check_num)
 					} else {
-						print_row = print_row + "o"
+						print_row = print_row + " "
 					}
 				}
-				if (p+1)%3 == 0 {
+				if p != 8 {
 					print_row = print_row + "|"
 				}
 			}
+			// adding spaces between the values for better readability
+			print_row = strings.Join(strings.Split(print_row, ""), " ")
+			fmt.Println(" " + print_row)
+			print_row = ""
+
+			// WIP:
+			// cooler and better lines for beautiful CLI effect
+			if r == 2 && i != 8 {
+				fmt.Println("───────┼───────┼───────╬───────┼───────┼───────╬───────┼───────┼───────")
+			}
 		}
-		fmt.Println(print_row)
-		// for p, n := range entire_row {
-		// 	for k := 1; k < 10; k++ {
-		// 		if slices.Contains(n.potentials, fmt.Sprint(k)) {
-		// 			print_row = print_row + fmt.Sprint(k)
-		// 		}
-		// 		print_row = print_row + "o"
-		// 	}
-		// 	if (p+1)%3 == 0 {
-		// 		print_row = print_row + "| "
-		// 	}
-		// }
 
+		// random unicode for visual candy:
+		// ─┼─
+		// ■
+		// ╬
+		// ╫  ╪
 	}
-	/*
-		something like this:
-
-			| ∙ ∙ ∙ | 1 2 3 ║
-		5   | ∙ 5 ∙ | 4 5 6 ║
-			| ∙ ∙ ∙ | 7 8 9 ║
-		-----+
-	*/
-
 }
