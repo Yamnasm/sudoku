@@ -45,8 +45,8 @@ type Position struct {
 
 func main() {
 	colour_init()
-	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_HARD)
-	// small_display(puz)
+	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_EVIL)
+	small_display(puz)
 	solve_loop(puz)
 }
 
@@ -56,6 +56,7 @@ func solve_loop(puz []Cell) {
 		if check_complete(puz) {
 			fmt.Println("")
 			fmt.Println("Sudoku puzzle is complete after", cycles, "cycles!")
+			small_display(puz)
 			return
 		}
 		// saving for difference check later
@@ -67,16 +68,16 @@ func solve_loop(puz []Cell) {
 		function or at the start of the loop.
 		*/
 		puz = assess_potentials(puz)
-		small_display(puz)
+		// small_display(puz)
 		fmt.Println("")
 		large_display(puz)
-		// puz = open_singles(puz)
-		// puz = assess_potentials(puz)
-		// puz = hidden_singles(puz, 1) //mode 1 is rows
-		// puz = assess_potentials(puz)
-		// puz = hidden_singles(puz, 2) //mode 2 is columns
-		// puz = assess_potentials(puz)
-		// puz = hidden_singles(puz, 3) //mode 3 is boxes
+		puz = open_singles(puz)
+		puz = assess_potentials(puz)
+		puz = hidden_singles(puz, 1) //mode 1 is rows
+		puz = assess_potentials(puz)
+		puz = hidden_singles(puz, 2) //mode 2 is columns
+		puz = assess_potentials(puz)
+		puz = hidden_singles(puz, 3) //mode 3 is boxes
 		//puz = open_pairs(puz)
 		//puz = x_wing(puz)
 
@@ -145,8 +146,8 @@ func hidden_singles(puz []Cell, mode int) []Cell {
 	if mode == 2 {
 		for _, c := range puz {
 			if c.value == "0" {
-				entire_row := get_entire_row(puz, c.coordinates.row)
-				flat_potentials_list := concatinate_potentials(entire_row)
+				entire_col := get_entire_col(puz, c.coordinates.column)
+				flat_potentials_list := concatinate_potentials(entire_col)
 				for _, p := range c.potentials {
 					if count(p, flat_potentials_list) == 1 {
 						fmt.Println("Hidden Single", p)
@@ -162,8 +163,8 @@ func hidden_singles(puz []Cell, mode int) []Cell {
 	if mode == 3 {
 		for _, c := range puz {
 			if c.value == "0" {
-				entire_row := get_entire_row(puz, c.coordinates.row)
-				flat_potentials_list := concatinate_potentials(entire_row)
+				entire_box := get_entire_box(puz, c.coordinates.box)
+				flat_potentials_list := concatinate_potentials(entire_box)
 				for _, p := range c.potentials {
 					if count(p, flat_potentials_list) == 1 {
 						fmt.Println("Hidden Single", p)
@@ -374,11 +375,20 @@ func large_display(puz []Cell) {
 			for p, n := range entire_row {
 				for k := 1; k < 4; k++ {
 					check_num := (r * 3) + k
+					if n.value != "0" {
+						if check_num == 5 {
+							print_row = print_row + n.value
+							continue
+						}
+						print_row = print_row + "■"
+						continue
+					}
 					if slices.Contains(n.potentials, fmt.Sprint(check_num)) {
 						print_row = print_row + fmt.Sprint(check_num)
-					} else {
-						print_row = print_row + " "
+						continue
 					}
+					print_row = print_row + " "
+					continue
 				}
 				if p != 8 {
 					print_row = print_row + "|"
