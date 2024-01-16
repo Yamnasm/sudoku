@@ -45,13 +45,13 @@ type Position struct {
 
 func main() {
 	colour_init()
-	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_EVIL)
+	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_HARD)
 	small_display(puz)
 	solve_loop(puz)
 }
 
+// loop to apply check/solve functions in a cycle
 func solve_loop(puz []Cell) {
-
 	for cycles := 0; cycles < LOOP_LIMIT; cycles++ {
 		if check_complete(puz) {
 			fmt.Println("")
@@ -78,7 +78,8 @@ func solve_loop(puz []Cell) {
 		puz = hidden_singles(puz, 2) //mode 2 is columns
 		puz = assess_potentials(puz)
 		puz = hidden_singles(puz, 3) //mode 3 is boxes
-		//puz = open_pairs(puz)
+
+		// puz = open_pairs(puz)
 		//puz = x_wing(puz)
 
 		fmt.Println("")
@@ -106,6 +107,7 @@ func colour_init() {
 	_ = windows.SetConsoleMode(out, outMode)
 }
 
+// solves for single potentials within cells
 func open_singles(puz []Cell) []Cell {
 	var output []Cell
 	for _, c := range puz {
@@ -121,7 +123,7 @@ func open_singles(puz []Cell) []Cell {
 	return output
 }
 
-// mild attempt at this check function. Doesn't work but can do.
+// solves for singular potentials within houses
 func hidden_singles(puz []Cell, mode int) []Cell {
 	var output []Cell
 
@@ -179,6 +181,28 @@ func hidden_singles(puz []Cell, mode int) []Cell {
 	return output
 }
 
+// identifies twins of potential pairs
+func open_pairs(puz []Cell) []Cell {
+	var output []Cell
+	for _, c := range puz {
+		if len(c.potentials) == 2 { //finding the initial pair
+
+		}
+		output = append(output, c)
+	}
+	return output
+}
+
+// func check_duplicate_in_arr(target []string, house []Cell) int {
+// 	// target is typically an array of potentials. may change this later
+// 	for p, c := range house {
+// 		if target == c.potentials {
+// 			return p
+// 		}
+// 	}
+// }
+
+// counts the target string within a string array
 func count(target string, array []string) int {
 	var count int = 0
 	for _, e := range array {
@@ -189,6 +213,7 @@ func count(target string, array []string) int {
 	return count
 }
 
+// converts a house of cells into a flat string array of it's potentials
 func concatinate_potentials(cells []Cell) []string {
 	var joined []string
 	var potentials_array [][]string
@@ -203,15 +228,7 @@ func concatinate_potentials(cells []Cell) []string {
 	return joined
 }
 
-func listify_values(cells []Cell) []string {
-	var joined []string
-
-	for _, s := range cells {
-		joined = append(joined, s.value)
-	}
-	return joined
-}
-
+// converts initial puzzle string (from random_sudoku.py) to Cell array.
 func parse_puzzle_string(puz string) []Cell {
 	var cell_array []Cell
 	for i, c := range strings.Split(puz, "") {
@@ -226,6 +243,8 @@ func parse_puzzle_string(puz string) []Cell {
 	return cell_array
 }
 
+// fills all of the potentials of each cell by the values of houses it belongs to
+// care must be taken because this func will rewrite previous eliminated potentials
 func assess_potentials(puz []Cell) []Cell {
 	var output []Cell
 	for _, c := range puz {
@@ -250,6 +269,7 @@ func assess_potentials(puz []Cell) []Cell {
 	return output
 }
 
+// converting a house of cell values into a string array
 func stringify_cells(cell_arr []Cell) []string {
 	var output []string
 	for _, c := range cell_arr {
@@ -258,18 +278,18 @@ func stringify_cells(cell_arr []Cell) []string {
 	return output
 }
 
+// super quick check if puzzle is not filled in, then long form validation
 func check_complete(puz []Cell) bool {
-	// super quick check if puzzle is not filled in
+
 	for _, c := range puz {
 		if c.value == "0" {
 			return false
 		}
 	}
-	// proper confirmation if puzzle is *valid*
 	for i := 0; i < 9; i++ {
-		entire_row := listify_values(get_entire_row(puz, i))
-		entire_col := listify_values(get_entire_col(puz, i))
-		entire_box := listify_values(get_entire_box(puz, i))
+		entire_row := stringify_cells(get_entire_row(puz, i))
+		entire_col := stringify_cells(get_entire_col(puz, i))
+		entire_box := stringify_cells(get_entire_box(puz, i))
 		for num := 1; num < 10; num++ {
 			if count(fmt.Sprint(num), entire_row) > 1 {
 				fmt.Println("Puzzle is invalid!")
@@ -289,6 +309,7 @@ func check_complete(puz []Cell) bool {
 	return true
 }
 
+// puzzle comparison check for stall validation
 func is_puzzle_same(previous_puz []Cell, current_puz []Cell) bool {
 	return reflect.DeepEqual(previous_puz, current_puz)
 }
