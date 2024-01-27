@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -17,7 +16,7 @@ const (
 	TEST_PUZZLE_HARD   = "000025670609000010002004000080002700030060090004500020000200800020000301096480000"
 	TEST_PUZZLE_EVIL   = "003000001004086009000100030030900140800000005027001090070005000300490600200000500"
 
-	LOOP_LIMIT = 50
+	LOOP_LIMIT = 100
 
 	COLOUR_RESET  = "\033[0m"
 	COLOUR_RED    = "\033[31m"
@@ -45,12 +44,13 @@ type Position struct {
 
 func main() {
 	colour_init()
-	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_HARD)
+	var puz []Cell = parse_puzzle_string(TEST_PUZZLE_EVIL)
 	small_display(puz)
+	puz = assess_potentials(puz)
 	solve_loop(puz)
 }
 
-// loop to apply check/solve functions in a cycle
+// Loop to apply check/solve functions in a cycle
 func solve_loop(puz []Cell) {
 	for cycles := 0; cycles < LOOP_LIMIT; cycles++ {
 		if check_complete(puz) {
@@ -59,37 +59,35 @@ func solve_loop(puz []Cell) {
 			small_display(puz)
 			return
 		}
-		// saving for difference check later
-		var pre_check_puz []Cell = puz
 
-		// running though each solver function
-		/* TODO:
-		evaluate if assess_potentials should be run after each solve
-		function or at the start of the loop.
-		*/
-		puz = assess_potentials(puz)
-		// small_display(puz)
-		fmt.Println("")
-		large_display(puz)
-		puz = open_singles(puz)
-		puz = assess_potentials(puz)
-		puz = hidden_singles(puz, 1) //mode 1 is rows
-		puz = assess_potentials(puz)
-		puz = hidden_singles(puz, 2) //mode 2 is columns
-		puz = assess_potentials(puz)
-		puz = hidden_singles(puz, 3) //mode 3 is boxes
+		// checks if puzzle solver has stalled if all checks are exhausted.
+		// TODO: make "Status" struct to cover other check outputs that may
+		// come up.
+		var change_made bool = false
 
+		// Steps though solution using more complicated checks as each
+		// previous check is exhausted. There is probably a better way
+		// to do this.
+		puz, change_made = open_singles(puz)
+		if change_made {
+			continue
+		}
+		puz, change_made = hidden_singles(puz)
+		if change_made {
+			continue
+		}
+
+		// TODO: Add more advanced checks.
 		// puz = open_pairs(puz)
-		//puz = x_wing(puz)
+		// puz = x_wing(puz)
 
-		fmt.Println("")
-		// small_display(puz)
-
-		if is_puzzle_same(pre_check_puz, puz) {
+		if !change_made {
 			fmt.Println("")
+			large_display(puz)
 			fmt.Println("Sudoku puzzle stalled after", cycles, "cycles.")
 			return
 		}
+
 	}
 	fmt.Println("")
 	fmt.Println("ERROR: Solver hit limit after", LOOP_LIMIT, "cycles.")
@@ -108,80 +106,87 @@ func colour_init() {
 }
 
 // solves for single potentials within cells
-func open_singles(puz []Cell) []Cell {
-	var output []Cell
-	for _, c := range puz {
+func open_singles(puz []Cell) ([]Cell, bool) {
+	change_made := false
+	for i, c := range puz {
 		if c.value == "0" {
 			if len(c.potentials) == 1 {
-				fmt.Println("Open Single", c.potentials[0])
+				fmt.Println("Open Single", c.potentials[0], "found on", c.coordinates.row+1, c.coordinates.column+1)
 				c.value = c.potentials[0]
 				c.potentials = nil
+				puz[i] = c
+				puz = eliminate_potentials(c.value, c.coordinates, puz)
+				change_made = true
+				return puz, change_made
 			}
 		}
-		output = append(output, c)
 	}
-	return output
+	return puz, change_made
 }
 
 // solves for singular potentials within houses
-func hidden_singles(puz []Cell, mode int) []Cell {
-	var output []Cell
+func hidden_singles(puz []Cell) ([]Cell, bool) {
+	change_made := false
 
 	// checking rows
-	if mode == 1 {
-		for _, c := range puz {
-			if c.value == "0" {
-				entire_row := get_entire_row(puz, c.coordinates.row)
-				flat_potentials_list := concatinate_potentials(entire_row)
-				for _, p := range c.potentials {
-					if count(p, flat_potentials_list) == 1 {
-						fmt.Println("Hidden Single", p)
-						c.value = p
-						c.potentials = nil
-					}
+	for i, c := range puz {
+		if c.value == "0" {
+			entire_row := get_entire_row(puz, c.coordinates.row)
+			flat_potentials_list := concatinate_potentials(entire_row)
+			for _, p := range c.potentials {
+				if count(p, flat_potentials_list) == 1 {
+					fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
+					c.value = p
+					c.potentials = nil
+					puz[i] = c
+					puz = eliminate_potentials(c.value, c.coordinates, puz)
+					change_made = true
+					return puz, change_made
 				}
 			}
-			output = append(output, c)
 		}
 	}
 	// checking columns
-	if mode == 2 {
-		for _, c := range puz {
-			if c.value == "0" {
-				entire_col := get_entire_col(puz, c.coordinates.column)
-				flat_potentials_list := concatinate_potentials(entire_col)
-				for _, p := range c.potentials {
-					if count(p, flat_potentials_list) == 1 {
-						fmt.Println("Hidden Single", p)
-						c.value = p
-						c.potentials = nil
-					}
+	for i, c := range puz {
+		if c.value == "0" {
+			entire_col := get_entire_col(puz, c.coordinates.column)
+			flat_potentials_list := concatinate_potentials(entire_col)
+			for _, p := range c.potentials {
+				if count(p, flat_potentials_list) == 1 {
+					fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
+					c.value = p
+					c.potentials = nil
+					puz[i] = c
+					puz = eliminate_potentials(c.value, c.coordinates, puz)
+					change_made = true
+					return puz, change_made
 				}
 			}
-			output = append(output, c)
 		}
 	}
+
 	// checking boxes
-	if mode == 3 {
-		for _, c := range puz {
-			if c.value == "0" {
-				entire_box := get_entire_box(puz, c.coordinates.box)
-				flat_potentials_list := concatinate_potentials(entire_box)
-				for _, p := range c.potentials {
-					if count(p, flat_potentials_list) == 1 {
-						fmt.Println("Hidden Single", p)
-						c.value = p
-						c.potentials = nil
-					}
+	for i, c := range puz {
+		if c.value == "0" {
+			entire_box := get_entire_box(puz, c.coordinates.box)
+			flat_potentials_list := concatinate_potentials(entire_box)
+			for _, p := range c.potentials {
+				if count(p, flat_potentials_list) == 1 {
+					fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
+					c.value = p
+					c.potentials = nil
+					puz[i] = c
+					puz = eliminate_potentials(c.value, c.coordinates, puz)
+					change_made = true
+					return puz, change_made
 				}
 			}
-			output = append(output, c)
 		}
 	}
-	return output
+	return puz, change_made
 }
 
-// identifies twins of potential pairs
+// UNFINISHED identifies twins of potential pairs
 func open_pairs(puz []Cell) []Cell {
 	var output []Cell
 	for _, c := range puz {
@@ -243,11 +248,10 @@ func parse_puzzle_string(puz string) []Cell {
 	return cell_array
 }
 
-// fills all of the potentials of each cell by the values of houses it belongs to
-// care must be taken because this func will rewrite previous eliminated potentials
+// fills all of the potentials of each cell by the values of houses it belongs to.
+// Care must be taken because this func will rewrite previously eliminated potentials
 func assess_potentials(puz []Cell) []Cell {
-	var output []Cell
-	for _, c := range puz {
+	for i, c := range puz {
 		if c.value == "0" {
 			var potentials []string
 			for i := 1; i < 10; i++ {
@@ -262,11 +266,40 @@ func assess_potentials(puz []Cell) []Cell {
 			entire_box := get_entire_box(puz, c.coordinates.box)
 			potentials = diff(potentials, stringify_cells(entire_box))
 
-			c.potentials = potentials
+			puz[i].potentials = potentials
 		}
-		output = append(output, c)
 	}
-	return output
+	return puz
+}
+
+// Removes potentials from puzzle based on target string.
+// May need a target house argument on pair-checks (and more).
+func eliminate_potentials(target string, pos Position, puz []Cell) []Cell {
+	for i, c := range puz {
+		if c.coordinates.row != pos.row &&
+			c.coordinates.column != pos.column &&
+			c.coordinates.box != pos.box {
+			continue
+		}
+		for _, p := range c.potentials {
+			if p == target {
+				fmt.Println("Removed", p, "from", c.coordinates.row+1, c.coordinates.column+1)
+				c.potentials = remove(c.potentials, target)
+			}
+		}
+		puz[i] = c
+	}
+	return puz
+}
+
+// removes string from string array
+func remove(s []string, r string) []string {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
 }
 
 // converting a house of cell values into a string array
@@ -309,11 +342,6 @@ func check_complete(puz []Cell) bool {
 	return true
 }
 
-// puzzle comparison check for stall validation
-func is_puzzle_same(previous_puz []Cell, current_puz []Cell) bool {
-	return reflect.DeepEqual(previous_puz, current_puz)
-}
-
 func diff(a []string, b []string) []string {
 	// Turn b into a map
 	m := make(map[string]bool, len(b))
@@ -334,6 +362,7 @@ func diff(a []string, b []string) []string {
 	return diff
 }
 
+// returns target row from puzzle
 func get_entire_row(puz []Cell, target int) []Cell {
 	var output []Cell
 	for _, c := range puz {
@@ -344,6 +373,7 @@ func get_entire_row(puz []Cell, target int) []Cell {
 	return output
 }
 
+// returns target column from puzzle
 func get_entire_col(puz []Cell, target int) []Cell {
 	var output []Cell
 	for _, c := range puz {
@@ -354,6 +384,7 @@ func get_entire_col(puz []Cell, target int) []Cell {
 	return output
 }
 
+// returns target box from puzzle
 func get_entire_box(puz []Cell, target int) []Cell {
 	var output []Cell
 	for _, c := range puz {
@@ -364,6 +395,7 @@ func get_entire_box(puz []Cell, target int) []Cell {
 	return output
 }
 
+// prints 9x9 layout of sudoku puzzle showing just values.
 func small_display(puz []Cell) {
 	for i := 0; i < 9; i++ {
 		var print_row string
@@ -385,7 +417,7 @@ func small_display(puz []Cell) {
 	}
 }
 
-// working on making the potentials visible on CLI. WIP
+// prints 27x27 layout of sudoku puzzle, showing all values and potentials
 func large_display(puz []Cell) {
 
 	for i := 0; i < 9; i++ {
