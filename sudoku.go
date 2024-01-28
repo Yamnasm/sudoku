@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -63,7 +64,7 @@ func solve_loop(puz []Cell) {
 	for cycles := 0; cycles < LOOP_LIMIT; cycles++ {
 		if check_complete(puz) {
 			fmt.Println("")
-			fmt.Println("Sudoku puzzle is complete after", cycles, "cycles!")
+			fmt.Println("Sudoku puzzle is complete after", cycles-1, "cycles!")
 			small_display(puz)
 			return
 		}
@@ -81,6 +82,10 @@ func solve_loop(puz []Cell) {
 			continue
 		}
 		puz, change_made = hidden_singles(puz)
+		if change_made {
+			continue
+		}
+		puz, change_made = open_pairs(puz)
 		if change_made {
 			continue
 		}
@@ -123,7 +128,7 @@ func open_singles(puz []Cell) ([]Cell, bool) {
 				c.value = c.potentials[0]
 				c.potentials = nil
 				puz[i] = c
-				puz = eliminate_potentials(c.value, c.coordinates, HOUSE_ALL, puz)
+				puz, _ = eliminate_potentials(c.value, c.coordinates, []Position{c.coordinates}, HOUSE_ALL, puz)
 				change_made = true
 				return puz, change_made
 			}
@@ -148,7 +153,7 @@ func hidden_singles(puz []Cell) ([]Cell, bool) {
 						c.value = p
 						c.potentials = nil
 						puz[i] = c
-						puz = eliminate_potentials(c.value, c.coordinates, HOUSE_ALL, puz)
+						puz, _ = eliminate_potentials(c.value, c.coordinates, []Position{c.coordinates}, HOUSE_ALL, puz)
 						change_made = true
 						return puz, change_made
 					}
@@ -159,26 +164,51 @@ func hidden_singles(puz []Cell) ([]Cell, bool) {
 	return puz, change_made
 }
 
-// UNFINISHED identifies twins of potential pairs
-func open_pairs(puz []Cell) []Cell {
-	var output []Cell
+// Identifies twins of potential pairs, and removes potentials from other houses.
+func open_pairs(puz []Cell) ([]Cell, bool) {
+	change_made := false
+
 	for _, c := range puz {
 		if len(c.potentials) == 2 { //finding the initial pair
+			cell_pos := []int{c.coordinates.row, c.coordinates.column, c.coordinates.box}
+			for house := 1; house < 4; house++ {
+				entire_house := get_entire_house(puz, cell_pos[house-1], house)
+				for _, t := range entire_house {
+					if reflect.DeepEqual(c.potentials, t.potentials) &&
+						!reflect.DeepEqual(c.coordinates, t.coordinates) {
+
+						fmt.Println("Pair found:", c.potentials, "in",
+							c.coordinates.row+1, c.coordinates.column+1,
+							"and",
+							t.coordinates.row+1, t.coordinates.column+1)
+
+						// Cells that don't share the same box won't remove other potentials from
+						// the initial pair's box.
+						if house == HOUSE_BOX {
+							if c.coordinates.box != t.coordinates.box {
+								continue
+							}
+						}
+
+						pairs := []Position{c.coordinates, t.coordinates}
+						change_made1 := false
+						change_made2 := false
+
+						puz, change_made1 = eliminate_potentials(c.potentials[0], c.coordinates, pairs, house, puz)
+						puz, change_made2 = eliminate_potentials(c.potentials[1], c.coordinates, pairs, house, puz)
+
+						if change_made1 || change_made2 {
+							change_made = true
+
+						}
+					}
+				}
+			}
 
 		}
-		output = append(output, c)
 	}
-	return output
+	return puz, change_made
 }
-
-// func check_duplicate_in_arr(target []string, house []Cell) int {
-// 	// target is typically an array of potentials. may change this later
-// 	for p, c := range house {
-// 		if target == c.potentials {
-// 			return p
-// 		}
-// 	}
-// }
 
 // counts the target string within a string array
 func count(target string, array []string) int {
@@ -261,10 +291,22 @@ func diff(a []string, b []string) []string {
 	return diff
 }
 
-// Removes potentials from puzzle based on target string.
-// May need a target house argument on pair-checks (and more).
-func eliminate_potentials(target string, pos Position, house int, puz []Cell) []Cell {
+// Removes potentials from puzzle based on target string and house.
+// Exceptions are cells that are exempt from the elimination.
+func eliminate_potentials(target string, pos Position, exceptions []Position, house int, puz []Cell) ([]Cell, bool) {
+	change_made := false
 	for i, c := range puz {
+
+		// Does not remove potentials excepted cells
+		exception_flag := false
+		for _, ex := range exceptions {
+			if c.coordinates == ex {
+				exception_flag = true
+			}
+		}
+		if exception_flag {
+			continue
+		}
 
 		// mode parameter to remove potentials from specific (or all) houses.
 		if house == HOUSE_ALL {
@@ -294,11 +336,12 @@ func eliminate_potentials(target string, pos Position, house int, puz []Cell) []
 			if p == target {
 				fmt.Println("Removed", p, "from", c.coordinates.row+1, c.coordinates.column+1)
 				c.potentials = remove(c.potentials, target)
+				change_made = true
 			}
 		}
 		puz[i] = c
 	}
-	return puz
+	return puz, change_made
 }
 
 // removes string from string array
