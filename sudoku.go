@@ -30,6 +30,14 @@ const (
 	COLOUR_BLACK  = "\033[30m"
 )
 
+// consts for representing the houses parameter on various functions
+const (
+	HOUSE_ALL = iota
+	HOUSE_ROW
+	HOUSE_COL
+	HOUSE_BOX
+)
+
 type Cell struct {
 	value       string
 	potentials  []string
@@ -115,7 +123,7 @@ func open_singles(puz []Cell) ([]Cell, bool) {
 				c.value = c.potentials[0]
 				c.potentials = nil
 				puz[i] = c
-				puz = eliminate_potentials(c.value, c.coordinates, puz)
+				puz = eliminate_potentials(c.value, c.coordinates, HOUSE_ALL, puz)
 				change_made = true
 				return puz, change_made
 			}
@@ -128,57 +136,22 @@ func open_singles(puz []Cell) ([]Cell, bool) {
 func hidden_singles(puz []Cell) ([]Cell, bool) {
 	change_made := false
 
-	// checking rows
 	for i, c := range puz {
 		if c.value == "0" {
-			entire_row := get_entire_row(puz, c.coordinates.row)
-			flat_potentials_list := concatinate_potentials(entire_row)
-			for _, p := range c.potentials {
-				if count(p, flat_potentials_list) == 1 {
-					fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
-					c.value = p
-					c.potentials = nil
-					puz[i] = c
-					puz = eliminate_potentials(c.value, c.coordinates, puz)
-					change_made = true
-					return puz, change_made
-				}
-			}
-		}
-	}
-	// checking columns
-	for i, c := range puz {
-		if c.value == "0" {
-			entire_col := get_entire_col(puz, c.coordinates.column)
-			flat_potentials_list := concatinate_potentials(entire_col)
-			for _, p := range c.potentials {
-				if count(p, flat_potentials_list) == 1 {
-					fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
-					c.value = p
-					c.potentials = nil
-					puz[i] = c
-					puz = eliminate_potentials(c.value, c.coordinates, puz)
-					change_made = true
-					return puz, change_made
-				}
-			}
-		}
-	}
-
-	// checking boxes
-	for i, c := range puz {
-		if c.value == "0" {
-			entire_box := get_entire_box(puz, c.coordinates.box)
-			flat_potentials_list := concatinate_potentials(entire_box)
-			for _, p := range c.potentials {
-				if count(p, flat_potentials_list) == 1 {
-					fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
-					c.value = p
-					c.potentials = nil
-					puz[i] = c
-					puz = eliminate_potentials(c.value, c.coordinates, puz)
-					change_made = true
-					return puz, change_made
+			cell_pos := []int{c.coordinates.row, c.coordinates.column, c.coordinates.box}
+			for house := 1; house < 4; house++ {
+				entire_house := get_entire_house(puz, cell_pos[house-1], house)
+				flat_potentials_list := concatinate_potentials(entire_house)
+				for _, p := range c.potentials {
+					if count(p, flat_potentials_list) == 1 {
+						fmt.Println("Hidden Single", p, "found on", c.coordinates.row+1, c.coordinates.column+1)
+						c.value = p
+						c.potentials = nil
+						puz[i] = c
+						puz = eliminate_potentials(c.value, c.coordinates, HOUSE_ALL, puz)
+						change_made = true
+						return puz, change_made
+					}
 				}
 			}
 		}
@@ -257,30 +230,66 @@ func assess_potentials(puz []Cell) []Cell {
 			for i := 1; i < 10; i++ {
 				potentials = append(potentials, fmt.Sprint(i))
 			}
-			entire_row := get_entire_row(puz, c.coordinates.row)
-			potentials = diff(potentials, stringify_cells(entire_row))
-
-			entire_col := get_entire_col(puz, c.coordinates.column)
-			potentials = diff(potentials, stringify_cells(entire_col))
-
-			entire_box := get_entire_box(puz, c.coordinates.box)
-			potentials = diff(potentials, stringify_cells(entire_box))
-
+			cell_pos := []int{c.coordinates.row, c.coordinates.column, c.coordinates.box}
+			for house := 1; house < 4; house++ {
+				entire_house := get_entire_house(puz, cell_pos[house-1], house)
+				potentials = diff(potentials, stringify_cells(entire_house))
+			}
 			puz[i].potentials = potentials
 		}
 	}
 	return puz
 }
 
-// Removes potentials from puzzle based on target string.
-// May need a target house argument on pair-checks (and more).
-func eliminate_potentials(target string, pos Position, puz []Cell) []Cell {
-	for i, c := range puz {
-		if c.coordinates.row != pos.row &&
-			c.coordinates.column != pos.column &&
-			c.coordinates.box != pos.box {
+func diff(a []string, b []string) []string {
+	// Turn b into a map
+	m := make(map[string]bool, len(b))
+	for _, s := range b {
+		m[s] = false
+	}
+	// Append values from the longest slice that don't exist in the map
+	var diff []string
+	for _, s := range a {
+		if _, ok := m[s]; !ok {
+			diff = append(diff, s)
 			continue
 		}
+		m[s] = true
+	}
+	// Sort the resulting slice
+	sort.Strings(diff)
+	return diff
+}
+
+// Removes potentials from puzzle based on target string.
+// May need a target house argument on pair-checks (and more).
+func eliminate_potentials(target string, pos Position, house int, puz []Cell) []Cell {
+	for i, c := range puz {
+
+		// mode parameter to remove potentials from specific (or all) houses.
+		if house == HOUSE_ALL {
+			if c.coordinates.row != pos.row &&
+				c.coordinates.column != pos.column &&
+				c.coordinates.box != pos.box {
+				continue
+			}
+		}
+		if house == HOUSE_ROW {
+			if c.coordinates.row != pos.row {
+				continue
+			}
+		}
+		if house == HOUSE_COL {
+			if c.coordinates.column != pos.column {
+				continue
+			}
+		}
+		if house == HOUSE_BOX {
+			if c.coordinates.box != pos.box {
+				continue
+			}
+		}
+
 		for _, p := range c.potentials {
 			if p == target {
 				fmt.Println("Removed", p, "from", c.coordinates.row+1, c.coordinates.column+1)
@@ -319,22 +328,15 @@ func check_complete(puz []Cell) bool {
 			return false
 		}
 	}
-	for i := 0; i < 9; i++ {
-		entire_row := stringify_cells(get_entire_row(puz, i))
-		entire_col := stringify_cells(get_entire_col(puz, i))
-		entire_box := stringify_cells(get_entire_box(puz, i))
-		for num := 1; num < 10; num++ {
-			if count(fmt.Sprint(num), entire_row) > 1 {
-				fmt.Println("Puzzle is invalid!")
-				return false
-			}
-			if count(fmt.Sprint(num), entire_col) > 1 {
-				fmt.Println("Puzzle is invalid!")
-				return false
-			}
-			if count(fmt.Sprint(num), entire_box) > 1 {
-				fmt.Println("Puzzle is invalid!")
-				return false
+	for house := 1; house < 4; house++ {
+		// house iterates down the HOUSE_X constants.
+		for i := 0; i < 9; i++ {
+			entire_house := stringify_cells(get_entire_house(puz, i, house))
+			for num := 1; num < 10; num++ {
+				if count(fmt.Sprint(num), entire_house) > 1 {
+					fmt.Println("Puzzle is invalid!")
+					return false
+				}
 			}
 		}
 	}
@@ -342,55 +344,26 @@ func check_complete(puz []Cell) bool {
 	return true
 }
 
-func diff(a []string, b []string) []string {
-	// Turn b into a map
-	m := make(map[string]bool, len(b))
-	for _, s := range b {
-		m[s] = false
-	}
-	// Append values from the longest slice that don't exist in the map
-	var diff []string
-	for _, s := range a {
-		if _, ok := m[s]; !ok {
-			diff = append(diff, s)
-			continue
-		}
-		m[s] = true
-	}
-	// Sort the resulting slice
-	sort.Strings(diff)
-	return diff
-}
-
-// returns target row from puzzle
-func get_entire_row(puz []Cell, target int) []Cell {
+// Returns a string array of values from a selected house.
+func get_entire_house(puz []Cell, target int, house int) []Cell {
 	var output []Cell
 	for _, c := range puz {
-		if c.coordinates.row == target {
-			output = append(output, c)
+		if house == HOUSE_ROW {
+			if c.coordinates.row == target {
+				output = append(output, c)
+			}
 		}
-	}
-	return output
-}
+		if house == HOUSE_COL {
+			if c.coordinates.column == target {
+				output = append(output, c)
+			}
+		}
+		if house == HOUSE_BOX {
+			if c.coordinates.box == target {
+				output = append(output, c)
+			}
+		}
 
-// returns target column from puzzle
-func get_entire_col(puz []Cell, target int) []Cell {
-	var output []Cell
-	for _, c := range puz {
-		if c.coordinates.column == target {
-			output = append(output, c)
-		}
-	}
-	return output
-}
-
-// returns target box from puzzle
-func get_entire_box(puz []Cell, target int) []Cell {
-	var output []Cell
-	for _, c := range puz {
-		if c.coordinates.box == target {
-			output = append(output, c)
-		}
 	}
 	return output
 }
@@ -399,7 +372,7 @@ func get_entire_box(puz []Cell, target int) []Cell {
 func small_display(puz []Cell) {
 	for i := 0; i < 9; i++ {
 		var print_row string
-		entire_row := get_entire_row(puz, i)
+		entire_row := get_entire_house(puz, i, HOUSE_ROW)
 		for p, n := range strings.Join(stringify_cells(entire_row), " ") {
 			if string(n) == "0" {
 				print_row = print_row + COLOUR_WHITE + string(n) + COLOUR_RESET
@@ -422,7 +395,7 @@ func large_display(puz []Cell) {
 
 	for i := 0; i < 9; i++ {
 		var print_row string
-		entire_row := get_entire_row(puz, i)
+		entire_row := get_entire_house(puz, i, HOUSE_ROW)
 
 		for r := 0; r < 3; r++ {
 			for p, n := range entire_row {
