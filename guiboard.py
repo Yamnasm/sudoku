@@ -1,15 +1,19 @@
 from tkinter import *
+from SudokuPuzzle import SudokuPuzzle
+# from dataclasses import dataclass
 
-BOARD_DIMS = 600
+BOARD_DIMS = 400
+CELL_DIMS = BOARD_DIMS / 9
+FONT_SIZE = int(CELL_DIMS / 1.4)
 
-class SudokuBoard:
+class GUIBoard:
     def __init__(self):
         self.window = Tk()
         self.window.title("Sudoku")
         self.window.resizable(False, False)
         self.window.configure(bg="white")
-        self.window.bind("<1>", self.click_canvas)
-        self.window.bind("<KeyPress>", self.number_on_canvas)
+        self.window.bind("<1>", self._click_canvas)
+        self.window.bind("<KeyPress>", self._key_pressed)
 
         self.board_container = Frame(
             self.window,
@@ -17,26 +21,30 @@ class SudokuBoard:
         )
 
         self.canvas = Canvas(
-            self.board_container,
-            height=BOARD_DIMS,
-            width=BOARD_DIMS
+            master = self.board_container,
+            height = BOARD_DIMS,
+            width  = BOARD_DIMS
         )
 
         self.cell_rect = []
-        self.create_cells()
+        self._draw_cells()
 
         self.box_rect = []
-        self.create_boxes()
+        self._draw_boxes()
 
+        # list of drawn numbers on the canvas.
         self.num_text = []
         self.guess_text = []
 
         self.selected_cell = None
 
+        export_button = Button(self.window, text="Export", command=self.export)
+        export_button.pack()
+
         self.board_container.pack()
         self.canvas.pack()
 
-    def create_boxes(self):
+    def _draw_boxes(self):
         rect_size = BOARD_DIMS / 3
         for i in range(9):
             x0 = 0 + (rect_size * (i % 3))
@@ -50,7 +58,7 @@ class SudokuBoard:
                 )
             )
     
-    def create_cells(self):
+    def _draw_cells(self):
         rect_size = BOARD_DIMS / 9
         for i in range(81):
             x0 = 0 + (rect_size * (i % 9))
@@ -64,22 +72,55 @@ class SudokuBoard:
                     width=1
                 )
             )
+
+    def _update_gui(self, puzzle):
+
+        # removing all visible text from the board.
+        for num in self.num_text:
+            self.canvas.delete(num)
+
+        for guess in self.guess_text:
+            self.canvas.delete(guess)
+
+        self.guess_text = []
+        self.num_text = []
+
+        # replacing the text with the "new" puzzle object
+        for cell in puzzle:
+            if cell.value == "0":
+                continue
+            row = cell.location.row
+            col = cell.location.column
+            self.place_number(row, col, cell.value)
     
-    def place_number(self, x, y, value):
-        top_offset = (BOARD_DIMS / 9 / 2) + x * (BOARD_DIMS / 9)
-        left_offset = BOARD_DIMS / 9 / 2 + y * (BOARD_DIMS / 9)
+    def load_puzzle(self, puzzle):
+        self.puzzle = puzzle
+        self._update_gui(puzzle)
+
+    def place_number(self, row_num, col_num, value):
+
+        # example:
+        # row_num multiplied by cell height
+        # plus half a cell height (to center the value)
+
+        left_offset = col_num * CELL_DIMS + (CELL_DIMS / 2)
+        top_offset = row_num * CELL_DIMS + (CELL_DIMS / 2)
+        # print(f"value: {value}, row: {row_num}, top_offset: {top_offset}")
         self.num_text.append(self.canvas.create_text(
-            top_offset,
             left_offset,
+            top_offset,
             text=str(value),
             fill="black",
-            font=('Helvetica 40')
+            font=(f"Helvetica {FONT_SIZE}")
         ))
 
     def place_guess(self, x, y, value):
-        # FYI: this code is awful
+        # FYI: this code is awful, though slightly out of scope
+
+        # value dicates position within cell.
         guess_x_offset = ((value - 1) % 3) * (BOARD_DIMS / 9 / 3)
         guess_y_offset = ((value - 1) // 3) * (BOARD_DIMS / 9 / 3)
+
         top_offset = ((BOARD_DIMS / 9 / 3 / 2)) + x * (BOARD_DIMS / 9) + guess_x_offset
         left_offset = ((BOARD_DIMS / 9 / 3 / 2)) + y * (BOARD_DIMS / 9) + guess_y_offset
         self.guess_text.append(self.canvas.create_text(
@@ -90,7 +131,7 @@ class SudokuBoard:
             font=('Helvetica 15')
         ))
 
-    def click_canvas(self, event):
+    def _click_canvas(self, event):
         x = event.x
         y = event.y
 
@@ -104,39 +145,49 @@ class SudokuBoard:
                 self.selected_cell = cell
                 break
 
-    def number_on_canvas(self, event):
+    def _select_next_cell(self):
+        if self.selected_cell == 80:
+            return
+        
+        for cell in range(len(self.cell_rect)):
+            if cell != self.selected_cell:
+                continue
+            
+            self.canvas.itemconfig(self.cell_rect[cell], fill="white")
+            self.canvas.itemconfig(self.cell_rect[cell + 1], fill="grey")
+            self.selected_cell += 1
+            break
+
+    def _key_pressed(self, event):
         if self.selected_cell == None:
             return
-        x = self.selected_cell % 9
-        y = self.selected_cell // 9
 
-        for nums in range(len(self.num_text)):
-            x0, y0, x1, y1 = self.canvas.coords(self.cell_rect[self.selected_cell])
-            xn, yn = self.canvas.coords(self.num_text[nums])
-            if xn > x0 and yn > y0 and xn < x1 and yn < y1: #finding intersect
-                self.canvas.delete(self.num_text[nums])
-                self.num_text[nums] = None
-        self.num_text = [x for x in self.num_text if x is not None] #fixing list
+        if event.keysym in ["space", "Tab"]:
+            self._select_next_cell()
+            return
+        
+        if event.keysym not in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+            return
+        
+        slctd_row = self.selected_cell // 9
+        slctd_col = self.selected_cell % 9
 
-        if event.keycode >= 49 and event.keycode <= 57:
-            for nums in range(len(self.guess_text)):
-                x0, y0, x1, y1 = self.canvas.coords(self.cell_rect[self.selected_cell])
-                xn, yn = self.canvas.coords(self.guess_text[nums])
-                if xn > x0 and yn > y0 and xn < x1 and yn < y1: #finding intersect
-                    self.canvas.delete(self.guess_text[nums])
-                    self.guess_text[nums] = None
-            self.guess_text = [x for x in self.guess_text if x is not None] #fixing list
+        for cell in self.puzzle:
+            if cell.location.row == slctd_row and cell.location.column == slctd_col:
+                cell.value = event.keysym
+        self._update_gui(self.puzzle)
         
-        if event.keycode >= 97 and event.keycode <= 105:
-            self.place_guess(x, y, int(event.char))
-        if event.keycode >= 49 and event.keycode <= 57:
-            self.place_number(x, y, int(event.char))
-        
+    def export(self):
+        puzzle_string = "".join([cell.value for cell in self.puzzle])
+        print(puzzle_string)
+
     def play(self):
         self.window.mainloop()
 
 def main():
-    game = SudokuBoard()
+    puzzle = SudokuPuzzle("457869003009200058000000740000730000620908075000046000061000000730005100500193867")
+    game = GUIBoard()
+    game.load_puzzle(puzzle.board)
     game.play()
 
 if __name__ == "__main__":
