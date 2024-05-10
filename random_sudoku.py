@@ -1,7 +1,12 @@
 # extracts the sudoku game from https://www.websudoku.com/
 
+import argparse
 import requests
 from bs4 import BeautifulSoup
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-b", "--batch", action="store_true")
+args = parser.parse_args()
 
 #sudoku difficulty levels:
 EASY   = "1"
@@ -33,5 +38,22 @@ def get_random_sudoku_puzzle():
     sudoku_string = parse_table(html_page)
     return sudoku_string
 
-if __name__ == "__main__":
+def get_puzzle_batch(loop = 50):
+    puzzle_list = []
+    for _ in range(loop):
+        try:
+            puzzle_list.append(get_random_sudoku_puzzle())
+        except requests.exceptions.SSLError:
+            break
+    with open("test_puzzles.txt", 'w') as file:
+        for puz in puzzle_list:
+            file.write(f"{puz}\n")
+
+def main():
+    if args.batch:
+        get_puzzle_batch()
+        return
     print(get_random_sudoku_puzzle())
+
+if __name__ == "__main__":
+    main()
